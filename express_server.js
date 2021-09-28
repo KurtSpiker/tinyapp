@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const PORT = 8080; // default port 8080
+const PORT = 8080;
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({extended: true}));
 
@@ -16,23 +16,19 @@ function generateRandomString() {
   const setCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYXabcdefghijklmnopqrstuvwxy1234567890';
   for (let i = 0; i < 6; i++) {
     let randomCharacter = Math.floor(Math.random() * 61);
-    random += setCharacters[randomCharacter];
+    randomShortUrl += setCharacters[randomCharacter];
   }
   return randomShortUrl;
 }
 
 
-
+// get requests
 app.get("/urls/new", (req, res) => {
   res.render("urls_new");
 });
 
 app.get("/", (req, res) => {
   res.send("Hello!");
-});
-
-app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
 });
 
 app.get("/urls.json", (req, res) => {
@@ -55,7 +51,19 @@ app.get("/urls/:shortURL", (req, res) => {
   res.render("urls_show", templateVars);
 });
 
+app.get('/u/:shortURL', (req, res) => {
+  const longURL = urlDatabase[req.params.shortURL];
+  res.redirect(longURL);
+});
+
+// post requests
 app.post("/urls", (req, res) => {
-  console.log(req.body);  // Log the POST request body to the console
-  res.send("Ok");         // Respond with 'Ok' (we will replace this)
+  shortURL = generateRandomString();
+  urlDatabase[shortURL] = req.body.longURL;
+  res.redirect(`/urls/${shortURL}`);
+});
+
+//listener to indicate a connection
+app.listen(PORT, () => {
+  console.log(`Example app listening on port ${PORT}!`);
 });
