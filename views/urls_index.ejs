@@ -8,14 +8,25 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
   <title>TinyApp</title>
   <style>
-    button{
+    .button1{
       background-color: white;
       color: red;
       border: 2px solid red;
       border-radius: 8px;
     }
-    button:hover{
+    .button1:hover{
       background-color: red;
+      color: white;
+      border-radius: 8px;
+    }
+    .button2{
+      background-color: white;
+      color: blue;
+      border: 2px solid blue;
+      border-radius: 8px;
+    }
+    .button2:hover{
+      background-color: blue;
       color: white;
       border-radius: 8px;
     }
@@ -33,6 +44,7 @@
         <tr>
           <th scope="col">Short URL</th>
           <th scope="col">Long URL</th>
+          <th scope="col">Edit</th>
           <th scope="col">Delete</th>
         </tr>
       </thead>
@@ -42,8 +54,13 @@
             <td><%= url %></td>
             <td><%= urls[url] %></td>
             <td>
+              <form method="GET" action="/urls/<%= url %>">
+                <button type="submit" class="button2"> Edit </button>
+              </form>
+            </td>
+            <td>
               <form method="POST" action="/urls/<%= url %>/delete">
-                <button type="submit"> Delete </button>
+                <button type="submit" class="button1"> Delete </button>
               </form>
             </td>
           </tr>

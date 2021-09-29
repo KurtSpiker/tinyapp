@@ -1,6 +1,8 @@
 const express = require("express");
 const app = express();
 const PORT = 8080;
+
+//Parser
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({extended: true}));
 
@@ -67,6 +69,12 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   const shortURL = req.params.shortURL;
   delete urlDatabase[shortURL]
   res.redirect(`/urls`);
+});
+
+app.post("/urls/:shortURL/edit", (req, res) => { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+  const shortURL = req.params.shortURL;
+  urlDatabase[shortURL] = req.body.newLongURL;
+  res.redirect(`/urls/${shortURL}`);
 });
 
 //listener to indicate a connection
