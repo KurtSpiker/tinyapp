@@ -10,6 +10,31 @@
         <a class="nav-item nav-link" href="/urls">My URLs</a>
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
       </div>
+      <% if(user){ %>
+        <form method="POST" action='/logout' style="margin-left: auto">
+          <label>Logged In As: <%= user.email %> </label>
+          <style>
+            .buttonLogin {
+              background-color: #28a745;
+              color: black;
+              border: 2px solid black;
+              border-radius: 10px;
+            }
+            .buttonLogin:hover {
+              background-color: orange;
+              color: black;
+              border-radius: 10px;
+            }    
+          </style>
+          <button class="button buttonLogin" type="submit">Logout</button>
+        </form>
+      <% } else{ %>
+        <div class="navbar-nav" style="margin-left: auto">
+          <a class="nav-item nav-link" style="margin-left: auto" href="/login">Login</a>
+          <a class="nav-item nav-link" style="margin-left: auto" href="/register">Register</a>
+        </div>
+      <% } %>
     </div>
   </nav>
 </header>
+

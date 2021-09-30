@@ -5,6 +5,8 @@ const PORT = 8080;
 //Parser
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({extended: true}));
+const cookieParser = require('cookie-parser')
+app.use(cookieParser());
 
 app.set("view engine", "ejs");
 
@@ -12,6 +14,20 @@ const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
+
+const users = {
+  "111": {
+    id: "111",
+    email: "1234@number.com",
+    password: "123"
+  },
+  "222": {
+    id: "222",
+    email: "aaa@bbb.com",
+    password: "abc"
+  }
+}
+
 
 function generateRandomString() {
   let randomShortUrl = ''
@@ -23,33 +39,41 @@ function generateRandomString() {
   return randomShortUrl;
 }
 
+function userCheck (email, users) {
+  for (let ID in users) {
+    if (users[ID][email] === email) {
+      return users[ID]
+    }
+  }
+  return false;
+}
 
 // get requests
-app.get("/urls/new", (req, res) => {
-  res.render("urls_new");
-});
 
+// A get request that will redirect the client to the mainpage of the tinyapp
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  res.redirect("/urls");
 });
 
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
+app.get("/urls", (req, res) => {
+  const templateVars = { urls: urlDatabase, user: users[req.cookies["user_id"]] };
+  res.render("urls_index", templateVars);
 });
 
-app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlDatabase };
-  res.render("urls_index", templateVars);
+// A get request which displays a new page for URL creation
+app.get("/urls/new", (req, res) => {
+  const templateVars = { user: users[req.cookies["user_id"]] }
+  res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = urlDatabase[shortURL];
-  const templateVars = { shortURL, longURL };
+  const templateVars = { shortURL, longURL , user: users[req.cookies["user_id"]] };
   res.render("urls_show", templateVars);
 });
 
@@ -58,24 +82,67 @@ app.get('/u/:shortURL', (req, res) => {
   res.redirect(longURL);
 });
 
+// A get request that renders the register page
+app.get("/register", (req, res) => {
+  const templateVars = { user: users[req.cookies["user_id"]] }
+  res.render("register", templateVars);
+});
+
+// A get request that renders the login page
+app.get("/login", (req, res) => {
+  const templateVars = { user: users[req.cookies["user_id"]] }
+  res.render("login", templateVars);
+});
+
 // post requests
+
+
+app.post("/register", (req, res) => {
+  const userID = generateRandomString();
+  const email = req.body.email;
+  const password = req.body.password;
+
+  if (email === null || password === null) {
+    res.status(400).send("Please enter a valid email and password.");
+    return;
+  }
+  let newUser = userCheck(email, users);
+  if(newUser) {
+    res.status(400).send("Email already in use.");
+  } else {
+    let information = { id: userID, email: email, password: password};
+  }
+  users[userID] = information;
+  res.cookie("user_id", userID);
+  res.redirect("/urls");
+});
+
+// A post request used to generate a new short URL and catagorize it into the database
 app.post("/urls", (req, res) => {
   shortURL = generateRandomString();
   urlDatabase[shortURL] = req.body.longURL;
   res.redirect(`/urls/${shortURL}`);
 });
 
+// A post request that will allow the client to delete a stored URL
 app.post("/urls/:shortURL/delete", (req, res) => {
   const shortURL = req.params.shortURL;
   delete urlDatabase[shortURL]
   res.redirect(`/urls`);
 });
 
-app.post("/urls/:shortURL/edit", (req, res) => { // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// A post request for changing the URL of a currently stored site
+app.post("/urls/:shortURL/edit", (req, res) => { 
   const shortURL = req.params.shortURL;
   urlDatabase[shortURL] = req.body.newLongURL;
   res.redirect(`/urls/${shortURL}`);
 });
+
+//// A logout post that will clear the cookie associated with our username
+app.post("/logout", (req, res) => {
+  res.clearCookie("username");
+  res.redirect("/urls");
+})
 
 //listener to indicate a connection
 app.listen(PORT, () => {
