@@ -8,6 +8,7 @@ app.use(bodyParser.urlencoded({extended: true}));
 const cookieParser = require('cookie-parser')
 app.use(cookieParser());
 const bcrypt = require('bcryptjs');
+const cookieSession = require('cookie-session');
 
 app.set("view engine", "ejs");
 
@@ -56,9 +57,10 @@ const userCheck = (email) => {
   return null;
 }
 
-const usersLinks = (id) => {
-
-}
+app.use(cookieSession({
+  name: "chocolateChip",
+  keys: ["Eggs, butter, flour, sugar, baking powder", "Valrhona couveture"]
+}));
 
 // get requests
 
@@ -69,7 +71,7 @@ app.get("/", (req, res) => {
 
 app.get("/urls", (req, res) => {
   const usersLinks = {};
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   
   if(users[userID]) {
     for (let url in urlDatabase) {
@@ -78,14 +80,14 @@ app.get("/urls", (req, res) => {
       }
     }
   }
-  const templateVars = { urls: usersLinks, user: users[req.cookies["user_id"]] };
+  const templateVars = { urls: usersLinks, user: users[req.session.user_id] };
   res.render("urls_index", templateVars);
 });
 
 // A get request which displays a new page for URL creation
 app.get("/urls/new", (req, res) => {
-  const templateVars = { user: users[req.cookies.user_id] }
-  if (!req.cookies.user_id) {
+  const templateVars = { user: users[req.session.user_id] }
+  if (!req.session.user_id) {
     res.redirect("/login");
   }
   res.render("urls_new", templateVars);
@@ -105,13 +107,13 @@ app.get('/u/:shortURL', (req, res) => {
 
 // A get request that renders the register page
 app.get("/register", (req, res) => {
-  const templateVars = { user: users[req.cookies.user_id] }
+  const templateVars = { user: users[req.session.user_id] }
   res.render("register", templateVars);
 });
 
 // A get request that renders the login page
 app.get("/login", (req, res) => {
-  const templateVars = { user: users[req.cookies.user_id] }
+  const templateVars = { user: users[req.session.user_id] }
   res.render("login", templateVars);
 });
 
@@ -142,7 +144,7 @@ app.post("/login", (req, res) => {
 
   console.log(password);
   console.log(user.password);
-  res.cookie("user_id", user.id)
+  req.session.user_id = user.id
   res.redirect("/urls");
   
 });
@@ -166,7 +168,7 @@ app.post("/register", (req, res) => {
   
   users[userID] = {id: userID, email: email, password: hashedPassword};
 
-  res.cookie("user_id", userID);
+  req.session.user_id = userID;
   res.redirect("/urls");
 });
 
@@ -174,14 +176,14 @@ app.post("/register", (req, res) => {
 app.post("/urls", (req, res) => {
   let shortURL = generateRandomString();
   let longURL = req.body.longURL
-  urlDatabase[shortURL] = { longURL: longURL, userID: req.cookies.user_id };
+  urlDatabase[shortURL] = { longURL: longURL, userID: req.session.user_id };
   res.redirect(`/urls/${shortURL}`);
 });
 
 // A post request that will allow the client to delete a stored URL
 app.post("/urls/:shortURL/delete", (req, res) => {
   const shortURL = req.params.shortURL;
-  if (!req.cookies.user_id) {
+  if (!req.session.user_id) {
     return res.status(401).send("Only registered users are allowed to make changes.")
   }
   delete urlDatabase[shortURL]
@@ -191,7 +193,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 // A post request for changing the URL of a currently stored site
 app.post("/urls/:shortURL/edit", (req, res) => { 
   const shortURL = req.params.shortURL;
-  if (!req.cookies.user_id) {
+  if (!req.session.user_id) {
     return res.status(401).send("Only registered users are allowed to make changes.")
   }
   urlDatabase[shortURL]["longURL"] = req.body.newLongURL;
@@ -200,7 +202,7 @@ app.post("/urls/:shortURL/edit", (req, res) => {
 
 //// A logout post that will clear the cookie associated with our username
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
+  req.session = null;
   res.redirect("/urls");
 })
 
