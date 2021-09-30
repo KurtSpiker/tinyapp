@@ -7,6 +7,7 @@ const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({extended: true}));
 const cookieParser = require('cookie-parser')
 app.use(cookieParser());
+const bcrypt = require('bcryptjs');
 
 app.set("view engine", "ejs");
 
@@ -135,10 +136,12 @@ app.post("/login", (req, res) => {
     return res.status(400).send("No user with that email was found");
   }
   
-  if (user.password !== password) {
+  if (bcrypt.compareSync(password, user.password) === false) {
     return res.status(400).send("Password given does not match");
   }
 
+  console.log(password);
+  console.log(user.password);
   res.cookie("user_id", user.id)
   res.redirect("/urls");
   
@@ -159,7 +162,9 @@ app.post("/register", (req, res) => {
     res.status(400).send("Email already in use.");
   }
   
-  users[userID] = {id: userID, email: email, password: password};
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  
+  users[userID] = {id: userID, email: email, password: hashedPassword};
 
   res.cookie("user_id", userID);
   res.redirect("/urls");
