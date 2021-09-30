@@ -1,3 +1,4 @@
+const { generateRandomString, userCheck } = require("./helper");
 const express = require("express");
 const app = express();
 const PORT = 8080;
@@ -37,26 +38,6 @@ const users = {
 }
 
 
-function generateRandomString() {
-  let randomShortUrl = ''
-  const setCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYXabcdefghijklmnopqrstuvwxy1234567890';
-  for (let i = 0; i < 6; i++) {
-    let randomCharacter = Math.floor(Math.random() * 61);
-    randomShortUrl += setCharacters[randomCharacter];
-  }
-  return randomShortUrl;
-}
-
-const userCheck = (email) => {
-  for (const userId in users) {
-    const user = users[userId];
-    if (user.email === email) {
-      return user
-    }
-  }
-  return null;
-}
-
 app.use(cookieSession({
   name: "chocolateChip",
   keys: ["Eggs, butter, flour, sugar, baking powder", "Valrhona couveture"]
@@ -66,13 +47,22 @@ app.use(cookieSession({
 
 // A get request that will redirect the client to the mainpage of the tinyapp
 app.get("/", (req, res) => {
+  if (users[req.session.user_id] === undefined) {
+    res.redirect("/login");
+    return;
+  }
   res.redirect("/urls");
 });
 
 app.get("/urls", (req, res) => {
+  
+  if (users[req.session.user_id] === undefined) {
+    res.redirect("/login");
+    return;
+  }
+  
   const usersLinks = {};
   const userID = req.session.user_id;
-  
   if(users[userID]) {
     for (let url in urlDatabase) {
       if (urlDatabase[url].userID === users[userID].id) {
@@ -87,8 +77,9 @@ app.get("/urls", (req, res) => {
 // A get request which displays a new page for URL creation
 app.get("/urls/new", (req, res) => {
   const templateVars = { user: users[req.session.user_id] }
-  if (!req.session.user_id) {
+  if (users[req.session.user_id] === undefined) {
     res.redirect("/login");
+    return;
   }
   res.render("urls_new", templateVars);
 });
@@ -132,7 +123,7 @@ app.post("/login", (req, res) => {
     return res.status(400).send("Email or password cannot be blank");
   }
 
-  const user = userCheck(email);
+  const user = userCheck(email, users);
 
   if (!user) {
     return res.status(400).send("No user with that email was found");
@@ -142,8 +133,6 @@ app.post("/login", (req, res) => {
     return res.status(400).send("Password given does not match");
   }
 
-  console.log(password);
-  console.log(user.password);
   req.session.user_id = user.id
   res.redirect("/urls");
   
@@ -158,7 +147,7 @@ app.post("/register", (req, res) => {
     res.status(400).send("Please enter a valid email and password.");
     return;
   }
-  const newUser = userCheck(email);
+  const newUser = userCheck(email, users);
   
   if(newUser) {
     res.status(400).send("Email already in use.");
