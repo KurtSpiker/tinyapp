@@ -1,3 +1,6 @@
+
+//Helper functions
+
 const userCheck = (email, database) => {
   for (const userId in database) {
     const user = database[userId];

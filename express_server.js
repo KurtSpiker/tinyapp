@@ -1,26 +1,31 @@
+//Dependecies
 const { generateRandomString, userCheck } = require("./helper");
 const express = require("express");
 const app = express();
 const PORT = 8080;
 
-//Parser
+//Middle wear
 const bodyParser = require("body-parser");
-app.use(bodyParser.urlencoded({extended: true}));
-const cookieParser = require('cookie-parser')
-app.use(cookieParser());
 const bcrypt = require('bcryptjs');
 const cookieSession = require('cookie-session');
 
+
+app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
+app.use(cookieSession({
+  name: "chocolateChip",
+  keys: ["Eggs, butter, flour, sugar, baking powder", "Valrhona couveture"]
+}));
+
 
 const urlDatabase = {
   b6UTxQ: {
       longURL: "https://www.tsn.ca",
-      userID: "aJ48lW"
+      userID: "111"
   },
   i3BoGr: {
       longURL: "https://www.google.ca",
-      userID: "aJ48lW"
+      userID: "111"
   }
 };
 
@@ -28,7 +33,7 @@ const users = {
   "111": {
     id: "111",
     email: "1234@number.com",
-    password: "123"
+    password: "$2a$10$ndPnXwtBJhI221lx3TKaAOozooTkKDEhXOH.8DyXX1fYWJjGOGVX6" //123
   },
   "222": {
     id: "222",
@@ -37,14 +42,9 @@ const users = {
   }
 }
 
-
-app.use(cookieSession({
-  name: "chocolateChip",
-  keys: ["Eggs, butter, flour, sugar, baking powder", "Valrhona couveture"]
-}));
-
-// get requests
-
+//
+// get requests //
+//
 // A get request that will redirect the client to the mainpage of the tinyapp
 app.get("/", (req, res) => {
   if (users[req.session.user_id] === undefined) {
@@ -54,13 +54,8 @@ app.get("/", (req, res) => {
   res.redirect("/urls");
 });
 
+//A get for rendering the url "homepage" with user specific urls
 app.get("/urls", (req, res) => {
-  
-  if (users[req.session.user_id] === undefined) {
-    res.redirect("/login");
-    return;
-  }
-  
   const usersLinks = {};
   const userID = req.session.user_id;
   if(users[userID]) {
@@ -84,13 +79,27 @@ app.get("/urls/new", (req, res) => {
   res.render("urls_new", templateVars);
 });
 
+//A get request for rendering a html with a user specific shoretend url
 app.get("/urls/:shortURL", (req, res) => {
+  if (users[req.session.user_id] === undefined) {
+    return res.status(400).send("You need to log in to view this.");
+  }
+  if (!urlDatabase[req.params.shortURL]) {
+    return res.status(404).send("Url not found.");
+  }
+  if (req.session.user_id !== urlDatabase[req.params.shortURL].userID) {
+    return res.status(401).send("Unauthorized access.");
+  }
   const shortURL = req.params.shortURL
-  const templateVars = { shortURL: shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.cookies.user_id] };
+  const templateVars = { shortURL: shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.session.user_id] };
   res.render("urls_show", templateVars);
 });
 
 app.get('/u/:shortURL', (req, res) => {
+  if (!urlDatabase[req.params.shortURL]) {
+    return res.status(404).send("The URL you are trying to access does not exist.");
+  }
+  
   const shortURL = req.params.shortURL;
   const longURL = urlDatabase[shortURL]["longURL"];
   res.redirect(longURL);
@@ -98,12 +107,18 @@ app.get('/u/:shortURL', (req, res) => {
 
 // A get request that renders the register page
 app.get("/register", (req, res) => {
+  if (req.session.user_id) {
+    return res.redirect("/urls")
+  }
   const templateVars = { user: users[req.session.user_id] }
   res.render("register", templateVars);
 });
 
 // A get request that renders the login page
 app.get("/login", (req, res) => {
+  if (req.session.user_id) {
+    return res.redirect("/urls")
+  }
   const templateVars = { user: users[req.session.user_id] }
   res.render("login", templateVars);
 });
@@ -112,9 +127,11 @@ app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
 
-// post requests
+//
+// post requests //
+//
 
-
+//A login post that will login the user after clearing some checks
 app.post("/login", (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
@@ -138,23 +155,21 @@ app.post("/login", (req, res) => {
   
 });
 
+//A post request that will register a new user and add them to the user database
 app.post("/register", (req, res) => {
   const userID = generateRandomString();
   const email = req.body.email;
   const password = req.body.password;
 
-  if (email === null || password === null) {
-    res.status(400).send("Please enter a valid email and password.");
+  if (email === '' || password === '') {
+    res.status(400).send("You cannot enter an empty email or password.");
     return;
   }
-  const newUser = userCheck(email, users);
-  
-  if(newUser) {
+  if(userCheck(email, users)) {
     res.status(400).send("Email already in use.");
   }
   
   const hashedPassword = bcrypt.hashSync(password, 10);
-  
   users[userID] = {id: userID, email: email, password: hashedPassword};
 
   req.session.user_id = userID;
@@ -163,6 +178,10 @@ app.post("/register", (req, res) => {
 
 // A post request used to generate a new short URL and catagorize it into the database
 app.post("/urls", (req, res) => {
+  if (!req.session.user_id) {
+    return res.status(400).send("Please log in to view this content.");
+  }
+  
   let shortURL = generateRandomString();
   let longURL = req.body.longURL
   urlDatabase[shortURL] = { longURL: longURL, userID: req.session.user_id };
@@ -175,6 +194,9 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   if (!req.session.user_id) {
     return res.status(401).send("Only registered users are allowed to make changes.")
   }
+  if (urlDatabase[req.params.shortURL].userID !== req.session.user_id) {
+    return res.status(401).send("You are only allowed to make changes to your own URL's.")
+  }
   delete urlDatabase[shortURL]
   res.redirect(`/urls`);
 });
@@ -185,11 +207,14 @@ app.post("/urls/:shortURL/edit", (req, res) => {
   if (!req.session.user_id) {
     return res.status(401).send("Only registered users are allowed to make changes.")
   }
+  if (urlDatabase[shortURL].userID !== req.session.user_id) {
+    return res.status(401).send("You are only allowed to make changes to your own URL's.")
+  }
   urlDatabase[shortURL]["longURL"] = req.body.newLongURL;
   res.redirect(`/urls/${shortURL}`);
 });
 
-//// A logout post that will clear the cookie associated with our username
+//// A logout post that will clear the cookies and redirect to /urls
 app.post("/logout", (req, res) => {
   req.session = null;
   res.redirect("/urls");
